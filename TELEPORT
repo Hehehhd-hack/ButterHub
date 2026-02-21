@@ -1,0 +1,53 @@
+-- Place this in a LocalScript inside the button (ScreenGui > Button)
+
+local button = script.Parent
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+local TELEPORT_DISTANCE = 50 -- studs
+local COOLDOWN = 2 -- seconds between uses
+local canUse = true
+
+button.MouseButton1Click:Connect(function()
+    if not canUse then
+        return
+    end
+    
+    -- Start cooldown
+    canUse = false
+    button.BackgroundColor3 = Color3.fromRGB(100, 100, 100) -- Visual feedback
+    
+    -- Get the direction the player is facing
+    local lookDirection = humanoidRootPart.CFrame.LookVector
+    
+    -- Calculate new position (50 studs forward)
+    local newPosition = humanoidRootPart.Position + (lookDirection * TELEPORT_DISTANCE)
+    
+    -- Teleport the player
+    humanoidRootPart.CFrame = CFrame.new(newPosition, newPosition + lookDirection)
+    
+    -- Optional: Add visual effect
+    local effect = Instance.new("Part")
+    effect.Shape = Enum.PartType.Ball
+    effect.Material = Enum.Material.Neon
+    effect.Color = Color3.fromRGB(0, 170, 255)
+    effect.Size = Vector3.new(3, 3, 3)
+    effect.Anchored = true
+    effect.CanCollide = false
+    effect.CFrame = CFrame.new(humanoidRootPart.Position)
+    effect.Parent = workspace
+    
+    -- Fade out effect
+    game:GetService("TweenService"):Create(effect, TweenInfo.new(0.5), {
+        Transparency = 1,
+        Size = Vector3.new(8, 8, 8)
+    }):Play()
+    
+    game:GetService("Debris"):AddItem(effect, 0.5)
+    
+    -- Cooldown timer
+    wait(COOLDOWN)
+    canUse = true
+    button.BackgroundColor3 = Color3.fromRGB(85, 170, 255) -- Reset button color
+end)
