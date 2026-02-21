@@ -1,0 +1,267 @@
+local code = [[
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+local backpack = player:WaitForChild("Backpack")
+
+-- Create main ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ButterHubGui"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Butter emoji button (toggle)
+local butterButton = Instance.new("TextButton")
+butterButton.Size = UDim2.new(0, 60, 0, 60)
+butterButton.Position = UDim2.new(0.5, -30, 0.02, 0)
+butterButton.Text = "🧈"
+butterButton.TextSize = 35
+butterButton.BackgroundColor3 = Color3.new(1, 1, 1)
+butterButton.BorderSizePixel = 0
+butterButton.Parent = screenGui
+
+local butterCorner = Instance.new("UICorner")
+butterCorner.CornerRadius = UDim.new(0, 12)
+butterCorner.Parent = butterButton
+
+-- Powers container (hidden by default)
+local powersFrame = Instance.new("Frame")
+powersFrame.Size = UDim2.new(0, 200, 0, 360)
+powersFrame.Position = UDim2.new(0.5, -100, 0.12, 0)
+powersFrame.BackgroundColor3 = Color3.fromRGB(255, 248, 220) -- Butter cream color
+powersFrame.BorderSizePixel = 0
+powersFrame.Visible = false
+powersFrame.Parent = screenGui
+
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 15)
+frameCorner.Parent = powersFrame
+
+-- Add title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.Text = "🧈 BUTTER POWERS 🧈"
+title.TextSize = 16
+title.Font = Enum.Font.GothamBold
+title.TextColor3 = Color3.fromRGB(218, 165, 32) -- Gold color
+title.BackgroundTransparency = 1
+title.Parent = powersFrame
+
+-- Toggle powers menu
+local menuOpen = false
+butterButton.MouseButton1Click:Connect(function()
+	menuOpen = not menuOpen
+	powersFrame.Visible = menuOpen
+end)
+
+-- Helper function to create power buttons
+local function createPowerButton(name, emoji, position, callback)
+	local button = Instance.new("TextButton")
+	button.Size = UDim2.new(0.9, 0, 0, 50)
+	button.Position = UDim2.new(0.05, 0, 0, position)
+	button.Text = emoji .. " " .. name
+	button.TextSize = 14
+	button.Font = Enum.Font.GothamBold
+	button.TextColor3 = Color3.new(1, 1, 1)
+	button.BackgroundColor3 = Color3.fromRGB(255, 200, 87) -- Butter yellow
+	button.BorderSizePixel = 0
+	button.Parent = powersFrame
+	
+	local corner = Instance.new("UICorner")
+	corner.CornerRadius = UDim.new(0, 10)
+	corner.Parent = button
+	
+	button.MouseButton1Click:Connect(callback)
+	
+	return button
+end
+
+-- AUTO GRAB POWER (Always on by default)
+local autoGrabActive = true
+local autoGrabButton = createPowerButton("AUTO GRAB: ON", "🪙", 50, function()
+	autoGrabActive = not autoGrabActive
+	
+	if autoGrabActive then
+		autoGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100) -- Green when active
+		autoGrabButton.Text = "🪙 AUTO GRAB: ON"
+	else
+		autoGrabButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87) -- Back to butter yellow
+		autoGrabButton.Text = "🪙 AUTO GRAB: OFF"
+	end
+end)
+
+-- Set initial color to green since it's on by default
+autoGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+
+-- Auto grab functionality
+local function autoGrabCoins()
+	while wait(0.1) do
+		if autoGrabActive then
+			for _, obj in pairs(workspace:GetDescendants()) do
+				if obj:IsA("ProximityPrompt") then
+					-- Check if the prompt is within range
+					local promptParent = obj.Parent
+					if promptParent and promptParent:IsA("BasePart") then
+						local distance = (promptParent.Position - humanoidRootPart.Position).Magnitude
+						if distance <= obj.MaxActivationDistance then
+							-- Fire the proximity prompt
+							fireproximityprompt(obj)
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+-- Start auto grab in a separate thread
+coroutine.wrap(autoGrabCoins)()
+
+-- TELEPORT POWER
+local teleportCooldown = false
+createPowerButton("TELEPORT", "⚡", 110, function()
+	if teleportCooldown then return end
+	teleportCooldown = true
+	
+	-- Equip FlyingCarpet
+	local carpet = backpack:FindFirstChild("FlyingCarpet") or character:FindFirstChild("FlyingCarpet")
+	if carpet and carpet.Parent == backpack then
+		humanoid:EquipTool(carpet)
+	end
+	
+	wait(0.1)
+	
+	local lookDirection = humanoidRootPart.CFrame.LookVector
+	local newPosition = humanoidRootPart.Position + (lookDirection * 50)
+	humanoidRootPart.CFrame = CFrame.new(newPosition, newPosition + lookDirection)
+	
+	-- Effect
+	local effect = Instance.new("Part")
+	effect.Shape = Enum.PartType.Ball
+	effect.Material = Enum.Material.Neon
+	effect.Color = Color3.fromRGB(255, 200, 87)
+	effect.Size = Vector3.new(3, 3, 3)
+	effect.Anchored = true
+	effect.CanCollide = false
+	effect.CFrame = CFrame.new(humanoidRootPart.Position)
+	effect.Parent = workspace
+	
+	game:GetService("TweenService"):Create(effect, TweenInfo.new(0.5), {
+		Transparency = 1,
+		Size = Vector3.new(8, 8, 8)
+	}):Play()
+	
+	game:GetService("Debris"):AddItem(effect, 0.5)
+	
+	wait(2)
+	teleportCooldown = false
+end)
+
+-- LOCK ON POWER
+local lockOnCooldown = false
+createPowerButton("LOCK ON", "🎯", 170, function()
+	if lockOnCooldown then return end
+	lockOnCooldown = true
+	
+	-- Find nearest player
+	local nearestPlayer = nil
+	local shortestDistance = math.huge
+	
+	for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+		if otherPlayer ~= player and otherPlayer.Character then
+			local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+			if otherRoot then
+				local distance = (otherRoot.Position - humanoidRootPart.Position).Magnitude
+				if distance < shortestDistance then
+					shortestDistance = distance
+					nearestPlayer = otherPlayer
+				end
+			end
+		end
+	end
+	
+	if nearestPlayer and nearestPlayer.Character then
+		local targetRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if targetRoot then
+			-- Fly quickly towards them
+			local targetPos = targetRoot.Position - (targetRoot.CFrame.LookVector * 3) -- Behind them
+			humanoidRootPart.CFrame = CFrame.new(targetPos, targetRoot.Position)
+			
+			-- Effect
+			local effect = Instance.new("Part")
+			effect.Shape = Enum.PartType.Ball
+			effect.Material = Enum.Material.Neon
+			effect.Color = Color3.fromRGB(255, 100, 100)
+			effect.Size = Vector3.new(3, 3, 3)
+			effect.Anchored = true
+			effect.CanCollide = false
+			effect.CFrame = CFrame.new(humanoidRootPart.Position)
+			effect.Parent = workspace
+			
+			game:GetService("TweenService"):Create(effect, TweenInfo.new(0.5), {
+				Transparency = 1,
+				Size = Vector3.new(8, 8, 8)
+			}):Play()
+			
+			game:GetService("Debris"):AddItem(effect, 0.5)
+		end
+	end
+	
+	wait(3)
+	lockOnCooldown = false
+end)
+
+-- SPEED BOOST POWER
+local speedActive = false
+local speedButton = createPowerButton("SPEED BOOST", "💨", 230, function()
+	speedActive = not speedActive
+	
+	if speedActive then
+		humanoid.WalkSpeed = 30
+		speedButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100) -- Green when active
+		speedButton.Text = "💨 SPEED: ON"
+	else
+		humanoid.WalkSpeed = 16
+		speedButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87) -- Back to butter yellow
+		speedButton.Text = "💨 SPEED BOOST"
+	end
+end)
+
+-- FLING POWER
+local flingActive = false
+local flingButton = createPowerButton("FLING", "🌪️", 290, function()
+	flingActive = not flingActive
+	
+	if flingActive then
+		flingButton.BackgroundColor3 = Color3.fromRGB(255, 100, 255) -- Purple when active
+		flingButton.Text = "🌪️ FLING: ON"
+	else
+		flingButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+		flingButton.Text = "🌪️ FLING"
+	end
+end)
+
+-- Fling detection
+humanoidRootPart.Touched:Connect(function(hit)
+	if flingActive and hit.Parent:FindFirstChild("Humanoid") then
+		local otherPlayer = game.Players:GetPlayerFromCharacter(hit.Parent)
+		if otherPlayer and otherPlayer ~= player then
+			local otherRoot = hit.Parent:FindFirstChild("HumanoidRootPart")
+			if otherRoot then
+				local direction = (otherRoot.Position - humanoidRootPart.Position).Unit
+				local bodyVelocity = Instance.new("BodyVelocity")
+				bodyVelocity.Velocity = direction * 100 + Vector3.new(0, 50, 0)
+				bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
+				bodyVelocity.Parent = otherRoot
+				
+				game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
+			end
+		end
+	end
+end)
+]]
+
+loadstring(code)()
