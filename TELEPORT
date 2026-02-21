@@ -1,5 +1,4 @@
 local code = [[
--- Create the UI
 local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
@@ -20,18 +19,35 @@ button.Font = Enum.Font.GothamBold
 button.TextSize = 18
 button.Parent = screenGui
 
--- Add rounded corners
 local corner = Instance.new("UICorner")
 corner.CornerRadius = UDim.new(0, 8)
 corner.Parent = button
 
--- Teleport functionality
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local backpack = player:WaitForChild("Backpack")
 
 local TELEPORT_DISTANCE = 50
 local COOLDOWN = 2
 local canUse = true
+
+-- Function to equip FlyingCarpet
+local function equipFlyingCarpet()
+    -- Look for FlyingCarpet in backpack
+    local carpet = backpack:FindFirstChild("FlyingCarpet")
+    
+    -- If not in backpack, check if already equipped
+    if not carpet then
+        carpet = character:FindFirstChild("FlyingCarpet")
+    end
+    
+    -- Equip it if found in backpack
+    if carpet and carpet.Parent == backpack then
+        character.Humanoid:EquipTool(carpet)
+    end
+    
+    return carpet
+end
 
 button.MouseButton1Click:Connect(function()
 	if not canUse then
@@ -41,6 +57,10 @@ button.MouseButton1Click:Connect(function()
 	canUse = false
 	button.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 	button.Text = "COOLDOWN..."
+	
+	-- Equip FlyingCarpet before teleporting
+	equipFlyingCarpet()
+	wait(0.1) -- Small delay to let carpet equip
 	
 	local lookDirection = humanoidRootPart.CFrame.LookVector
 	local newPosition = humanoidRootPart.Position + (lookDirection * TELEPORT_DISTANCE)
