@@ -12,41 +12,43 @@ screenGui.Name = "ButterHubGui"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = playerGui
 
--- Butter emoji button (toggle)
+-- Butter emoji button (toggle) - IN CORNER
 local butterButton = Instance.new("TextButton")
-butterButton.Size = UDim2.new(0, 60, 0, 60)
-butterButton.Position = UDim2.new(0.5, -30, 0.02, 0)
+butterButton.Size = UDim2.new(0, 50, 0, 50)
+butterButton.Position = UDim2.new(0, 10, 0, 10)
 butterButton.Text = "🧈"
-butterButton.TextSize = 35
+butterButton.TextSize = 30
 butterButton.BackgroundColor3 = Color3.new(1, 1, 1)
 butterButton.BorderSizePixel = 0
 butterButton.Parent = screenGui
 
 local butterCorner = Instance.new("UICorner")
-butterCorner.CornerRadius = UDim.new(0, 12)
+butterCorner.CornerRadius = UDim.new(0, 10)
 butterCorner.Parent = butterButton
 
--- Powers container (hidden by default)
+-- Powers container - SMALLER & COMPACT
 local powersFrame = Instance.new("Frame")
-powersFrame.Size = UDim2.new(0, 200, 0, 360)
-powersFrame.Position = UDim2.new(0.5, -100, 0.12, 0)
-powersFrame.BackgroundColor3 = Color3.fromRGB(255, 248, 220) -- Butter cream color
+powersFrame.Size = UDim2.new(0, 180, 0, 320)
+powersFrame.Position = UDim2.new(0, 70, 0, 10) -- Next to butter button
+powersFrame.BackgroundColor3 = Color3.fromRGB(255, 248, 220)
 powersFrame.BorderSizePixel = 0
 powersFrame.Visible = false
+powersFrame.Active = true
+powersFrame.Draggable = true
 powersFrame.Parent = screenGui
 
 local frameCorner = Instance.new("UICorner")
-frameCorner.CornerRadius = UDim.new(0, 15)
+frameCorner.CornerRadius = UDim.new(0, 12)
 frameCorner.Parent = powersFrame
 
 -- Add title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 40)
+title.Size = UDim2.new(1, 0, 0, 35)
 title.Position = UDim2.new(0, 0, 0, 0)
 title.Text = "🧈 BUTTER POWERS 🧈"
-title.TextSize = 16
+title.TextSize = 13
 title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.fromRGB(218, 165, 32) -- Gold color
+title.TextColor3 = Color3.fromRGB(218, 165, 32)
 title.BackgroundTransparency = 1
 title.Parent = powersFrame
 
@@ -57,74 +59,73 @@ butterButton.MouseButton1Click:Connect(function()
 	powersFrame.Visible = menuOpen
 end)
 
--- Helper function to create power buttons
-local function createPowerButton(name, emoji, position, callback)
+-- Helper function to create power buttons - SMALLER
+local function createPowerButton(name, emoji, position)
 	local button = Instance.new("TextButton")
-	button.Size = UDim2.new(0.9, 0, 0, 50)
+	button.Size = UDim2.new(0.9, 0, 0, 40)
 	button.Position = UDim2.new(0.05, 0, 0, position)
 	button.Text = emoji .. " " .. name
-	button.TextSize = 14
+	button.TextSize = 11
 	button.Font = Enum.Font.GothamBold
 	button.TextColor3 = Color3.new(1, 1, 1)
-	button.BackgroundColor3 = Color3.fromRGB(255, 200, 87) -- Butter yellow
+	button.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
 	button.BorderSizePixel = 0
 	button.Parent = powersFrame
 	
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
+	corner.CornerRadius = UDim.new(0, 8)
 	corner.Parent = button
-	
-	button.MouseButton1Click:Connect(callback)
 	
 	return button
 end
 
--- AUTO GRAB POWER (Always on by default)
-local autoGrabActive = true
-local autoGrabButton = createPowerButton("AUTO GRAB: ON", "🪙", 50, function()
+-- AUTO GRAB POWER (Starts OFF)
+local autoGrabActive = false
+local autoGrabButton = createPowerButton("AUTO GRAB: OFF", "🪙", 40)
+
+autoGrabButton.MouseButton1Click:Connect(function()
 	autoGrabActive = not autoGrabActive
 	
 	if autoGrabActive then
-		autoGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100) -- Green when active
+		autoGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
 		autoGrabButton.Text = "🪙 AUTO GRAB: ON"
 	else
-		autoGrabButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87) -- Back to butter yellow
+		autoGrabButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
 		autoGrabButton.Text = "🪙 AUTO GRAB: OFF"
 	end
 end)
 
--- Set initial color to green since it's on by default
-autoGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-
 -- Auto grab functionality
-local function autoGrabCoins()
+spawn(function()
 	while wait(0.1) do
 		if autoGrabActive then
 			for _, obj in pairs(workspace:GetDescendants()) do
 				if obj:IsA("ProximityPrompt") then
-					-- Check if the prompt is within range
 					local promptParent = obj.Parent
 					if promptParent and promptParent:IsA("BasePart") then
 						local distance = (promptParent.Position - humanoidRootPart.Position).Magnitude
 						if distance <= obj.MaxActivationDistance then
-							-- Fire the proximity prompt
-							fireproximityprompt(obj)
+							pcall(function()
+								fireproximityprompt(obj)
+							end)
 						end
 					end
 				end
 			end
 		end
 	end
-end
-
--- Start auto grab in a separate thread
-coroutine.wrap(autoGrabCoins)()
+end)
 
 -- TELEPORT POWER
 local teleportCooldown = false
-createPowerButton("TELEPORT", "⚡", 110, function()
+local teleportButton = createPowerButton("TELEPORT", "⚡", 85)
+
+teleportButton.MouseButton1Click:Connect(function()
 	if teleportCooldown then return end
 	teleportCooldown = true
+	
+	teleportButton.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+	teleportButton.Text = "⚡ COOLDOWN..."
 	
 	-- Equip FlyingCarpet
 	local carpet = backpack:FindFirstChild("FlyingCarpet") or character:FindFirstChild("FlyingCarpet")
@@ -158,13 +159,20 @@ createPowerButton("TELEPORT", "⚡", 110, function()
 	
 	wait(2)
 	teleportCooldown = false
+	teleportButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+	teleportButton.Text = "⚡ TELEPORT"
 end)
 
 -- LOCK ON POWER
 local lockOnCooldown = false
-createPowerButton("LOCK ON", "🎯", 170, function()
+local lockOnButton = createPowerButton("LOCK ON", "🎯", 130)
+
+lockOnButton.MouseButton1Click:Connect(function()
 	if lockOnCooldown then return end
 	lockOnCooldown = true
+	
+	lockOnButton.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+	lockOnButton.Text = "🎯 COOLDOWN..."
 	
 	-- Find nearest player
 	local nearestPlayer = nil
@@ -186,8 +194,7 @@ createPowerButton("LOCK ON", "🎯", 170, function()
 	if nearestPlayer and nearestPlayer.Character then
 		local targetRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
 		if targetRoot then
-			-- Fly quickly towards them
-			local targetPos = targetRoot.Position - (targetRoot.CFrame.LookVector * 3) -- Behind them
+			local targetPos = targetRoot.Position - (targetRoot.CFrame.LookVector * 3)
 			humanoidRootPart.CFrame = CFrame.new(targetPos, targetRoot.Position)
 			
 			-- Effect
@@ -212,31 +219,37 @@ createPowerButton("LOCK ON", "🎯", 170, function()
 	
 	wait(3)
 	lockOnCooldown = false
+	lockOnButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+	lockOnButton.Text = "🎯 LOCK ON"
 end)
 
--- SPEED BOOST POWER
+-- SPEED BOOST POWER (Starts OFF)
 local speedActive = false
-local speedButton = createPowerButton("SPEED BOOST", "💨", 230, function()
+local speedButton = createPowerButton("SPEED BOOST", "💨", 175)
+
+speedButton.MouseButton1Click:Connect(function()
 	speedActive = not speedActive
 	
 	if speedActive then
 		humanoid.WalkSpeed = 30
-		speedButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100) -- Green when active
+		speedButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
 		speedButton.Text = "💨 SPEED: ON"
 	else
 		humanoid.WalkSpeed = 16
-		speedButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87) -- Back to butter yellow
+		speedButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
 		speedButton.Text = "💨 SPEED BOOST"
 	end
 end)
 
--- FLING POWER
+-- FLING POWER (Starts OFF)
 local flingActive = false
-local flingButton = createPowerButton("FLING", "🌪️", 290, function()
+local flingButton = createPowerButton("FLING", "🌪️", 220)
+
+flingButton.MouseButton1Click:Connect(function()
 	flingActive = not flingActive
 	
 	if flingActive then
-		flingButton.BackgroundColor3 = Color3.fromRGB(255, 100, 255) -- Purple when active
+		flingButton.BackgroundColor3 = Color3.fromRGB(255, 100, 255)
 		flingButton.Text = "🌪️ FLING: ON"
 	else
 		flingButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
@@ -260,6 +273,48 @@ humanoidRootPart.Touched:Connect(function(hit)
 				game:GetService("Debris"):AddItem(bodyVelocity, 0.5)
 			end
 		end
+	end
+end)
+
+-- REDUCE LAG POWER
+local lagReductionActive = false
+local lagButton = createPowerButton("REDUCE LAG", "🔧", 265)
+
+lagButton.MouseButton1Click:Connect(function()
+	lagReductionActive = not lagReductionActive
+	
+	if lagReductionActive then
+		-- Lower graphics quality
+		local lighting = game:GetService("Lighting")
+		local settings = UserSettings():GetService("UserGameSettings")
+		
+		-- Reduce quality settings
+		settings.SavedQualityLevel = Enum.SavedQualitySetting.QualityLevel1
+		
+		-- Disable expensive effects
+		for _, effect in pairs(lighting:GetChildren()) do
+			if effect:IsA("PostEffect") or effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or 
+			   effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") or effect:IsA("DepthOfFieldEffect") then
+				effect.Enabled = false
+			end
+		end
+		
+		-- Reduce particle effects
+		for _, obj in pairs(workspace:GetDescendants()) do
+			if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke") or obj:IsA("Fire") or obj:IsA("Sparkles") then
+				obj.Enabled = false
+			end
+		end
+		
+		lagButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+		lagButton.Text = "🔧 LAG REDUCED"
+	else
+		-- Restore graphics
+		local settings = UserSettings():GetService("UserGameSettings")
+		settings.SavedQualityLevel = Enum.SavedQualitySetting.Automatic
+		
+		lagButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+		lagButton.Text = "🔧 REDUCE LAG"
 	end
 end)
 ]]
