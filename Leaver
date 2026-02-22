@@ -1,5 +1,4 @@
 local Players = game:GetService("Players")
-local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 local screenGui = Instance.new("ScreenGui")
@@ -8,53 +7,57 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local shadow = Instance.new("Frame")
-shadow.Name = "Shadow"
-shadow.Size = UDim2.new(0, 226, 0, 136)
-shadow.Position = UDim2.new(0.5, -107, 0.5, -60)
-shadow.BackgroundColor3 = Color3.fromRGB(180, 140, 30)
-shadow.BorderSizePixel = 0
-shadow.Parent = screenGui
-
-local shadowCorner = Instance.new("UICorner")
-shadowCorner.CornerRadius = UDim.new(0, 16)
-shadowCorner.Parent = shadow
-
 local frame = Instance.new("Frame")
 frame.Name = "ButterFrame"
-frame.Size = UDim2.new(0, 220, 0, 130)
-frame.Position = UDim2.new(0.5, -110, 0.5, -65)
+frame.Size = UDim2.new(0, 160, 0, 90)
+frame.Position = UDim2.new(0.5, -80, 0.5, -45)
 frame.BackgroundColor3 = Color3.fromRGB(255, 223, 100)
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
+frame.ZIndex = 2
 frame.Parent = screenGui
 
 local uiCorner = Instance.new("UICorner")
 uiCorner.CornerRadius = UDim.new(0, 14)
 uiCorner.Parent = frame
 
+local shadow = Instance.new("Frame")
+shadow.Name = "Shadow"
+shadow.Size = UDim2.new(1, 6, 1, 6)
+shadow.Position = UDim2.new(0, 3, 0, 3)
+shadow.BackgroundColor3 = Color3.fromRGB(180, 140, 30)
+shadow.BorderSizePixel = 0
+shadow.ZIndex = 1
+shadow.Parent = frame
+
+local shadowCorner = Instance.new("UICorner")
+shadowCorner.CornerRadius = UDim.new(0, 14)
+shadowCorner.Parent = shadow
+
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Name = "Title"
-titleLabel.Size = UDim2.new(1, 0, 0, 45)
+titleLabel.Size = UDim2.new(1, 0, 0, 32)
 titleLabel.Position = UDim2.new(0, 0, 0, 0)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "🧈 Butter Leave"
 titleLabel.TextColor3 = Color3.fromRGB(120, 80, 0)
 titleLabel.TextScaled = true
 titleLabel.Font = Enum.Font.GothamBold
+titleLabel.ZIndex = 3
 titleLabel.Parent = frame
 
 local leaveButton = Instance.new("TextButton")
 leaveButton.Name = "LeaveButton"
-leaveButton.Size = UDim2.new(0, 160, 0, 45)
-leaveButton.Position = UDim2.new(0.5, -80, 0, 68)
+leaveButton.Size = UDim2.new(0, 120, 0, 34)
+leaveButton.Position = UDim2.new(0.5, -60, 0, 46)
 leaveButton.BackgroundColor3 = Color3.fromRGB(220, 160, 20)
 leaveButton.BorderSizePixel = 0
 leaveButton.Text = "🚪 Leave Game"
 leaveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 leaveButton.TextScaled = true
 leaveButton.Font = Enum.Font.GothamBold
+leaveButton.ZIndex = 3
 leaveButton.Parent = frame
 
 local buttonCorner = Instance.new("UICorner")
@@ -69,22 +72,50 @@ leaveButton.MouseLeave:Connect(function()
 	leaveButton.BackgroundColor3 = Color3.fromRGB(220, 160, 20)
 end)
 
+local function leaveGame()
+	-- Synapse X
+	if syn and syn.exit then
+		syn.exit()
+	-- Synapse Z
+	elseif SYNZ and SYNZ.exit then
+		SYNZ.exit()
+	-- KRNL
+	elseif krnl and krnl.exit then
+		krnl.exit()
+	-- Fluxus
+	elseif fluxus and fluxus.exit then
+		fluxus.exit()
+	-- Celery
+	elseif celery and celery.exit then
+		celery.exit()
+	-- Delta, Solara, Oxygen U, Evon, Electron and most modern executors
+	elseif os and os.exit then
+		os.exit()
+	-- Universal Roblox crash fallback
+	elseif closeGame then
+		closeGame()
+	-- Last resort teleport fallback
+	else
+		pcall(function()
+			game:GetService("TeleportService"):TeleportAsync(game.PlaceId, {LocalPlayer})
+		end)
+	end
+end
+
 local leaving = false
 leaveButton.MouseButton1Click:Connect(function()
 	if leaving then return end
 	leaving = true
 	leaveButton.Text = "Leaving… 🧈"
 	leaveButton.BackgroundColor3 = Color3.fromRGB(160, 100, 5)
+	leaveGame()
 
-	local success, err = pcall(function()
-		TeleportService:TeleportAsync(game.PlaceId, {LocalPlayer})
+	-- If still running after 3 seconds, reset the button
+	task.delay(3, function()
+		if leaving then
+			leaving = false
+			leaveButton.Text = "🚪 Leave Game"
+			leaveButton.BackgroundColor3 = Color3.fromRGB(220, 160, 20)
+		end
 	end)
-
-	if not success then
-		-- TeleportAsync failed, reset the button so the player isn't stuck
-		warn("Teleport failed: " .. tostring(err))
-		leaving = false
-		leaveButton.Text = "🚪 Leave Game"
-		leaveButton.BackgroundColor3 = Color3.fromRGB(220, 160, 20)
-	end
 end)
