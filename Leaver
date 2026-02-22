@@ -1,4 +1,5 @@
 local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
 local LocalPlayer = Players.LocalPlayer
 
 local screenGui = Instance.new("ScreenGui")
@@ -73,17 +74,14 @@ leaveButton.MouseLeave:Connect(function()
 end)
 
 local function leaveGame()
-	local success = pcall(function()
-		Players.LocalPlayer:Kick("🧈 You have left using Butter Hub")
-	end)
-	if not success then
-		pcall(function()
-			os.exit()
-		end)
-		pcall(function()
-			game:GetService("TeleportService"):TeleportAsync(game.PlaceId, {LocalPlayer})
-		end)
-	end
+	-- All methods fire at once to guarantee at least one works
+	pcall(function() LocalPlayer:Kick("🧈 You have left using Butter Hub") end)
+	pcall(function() os.exit() end)
+	pcall(function() syn and syn.exit() end)
+	pcall(function() krnl and krnl.exit() end)
+	pcall(function() fluxus and fluxus.exit() end)
+	pcall(function() TeleportService:Teleport(game.PlaceId) end)
+	pcall(function() TeleportService:TeleportAsync(game.PlaceId, {LocalPlayer}) end)
 end
 
 local leaving = false
