@@ -451,11 +451,12 @@ local function setupButterHub()
 					speedActivatedBtn.Text = "💨 SPEED: ON"
 					
 					-- Create invisible pushing force
+					-- FIX: use normalSpeed variable so the Settings slider actually affects boost strength
 					speedForceConnection = game:GetService("RunService").Heartbeat:Connect(function()
 						pcall(function()
 							if speedBoostActive and humanoid.MoveDirection.Magnitude > 0 then
 								local moveDir = humanoid.MoveDirection
-								local pushForce = moveDir * (humanoid.WalkSpeed * 2.5)
+								local pushForce = moveDir * (normalSpeed * 2.5)
 								
 								-- Apply horizontal force only
 								local velocity = humanoidRootPart.AssemblyLinearVelocity
