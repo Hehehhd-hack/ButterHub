@@ -73,29 +73,13 @@ leaveButton.MouseLeave:Connect(function()
 end)
 
 local function leaveGame()
-	-- Synapse X
-	if syn and syn.exit then
-		syn.exit()
-	-- Synapse Z
-	elseif SYNZ and SYNZ.exit then
-		SYNZ.exit()
-	-- KRNL
-	elseif krnl and krnl.exit then
-		krnl.exit()
-	-- Fluxus
-	elseif fluxus and fluxus.exit then
-		fluxus.exit()
-	-- Celery
-	elseif celery and celery.exit then
-		celery.exit()
-	-- Delta, Solara, Oxygen U, Evon, Electron and most modern executors
-	elseif os and os.exit then
-		os.exit()
-	-- Universal Roblox crash fallback
-	elseif closeGame then
-		closeGame()
-	-- Last resort teleport fallback
-	else
+	local success = pcall(function()
+		Players.LocalPlayer:Kick("🧈 You have left using Butter Hub")
+	end)
+	if not success then
+		pcall(function()
+			os.exit()
+		end)
 		pcall(function()
 			game:GetService("TeleportService"):TeleportAsync(game.PlaceId, {LocalPlayer})
 		end)
@@ -110,7 +94,6 @@ leaveButton.MouseButton1Click:Connect(function()
 	leaveButton.BackgroundColor3 = Color3.fromRGB(160, 100, 5)
 	leaveGame()
 
-	-- If still running after 3 seconds, reset the button
 	task.delay(3, function()
 		if leaving then
 			leaving = false
