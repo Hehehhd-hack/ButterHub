@@ -30,6 +30,8 @@ local function setupButterHub()
 	butterButton.TextSize = 30
 	butterButton.BackgroundColor3 = Color3.new(1, 1, 1)
 	butterButton.BorderSizePixel = 0
+	butterButton.Active = true
+	butterButton.Draggable = false
 	butterButton.Parent = screenGui
 
 	local butterCorner = Instance.new("UICorner")
@@ -44,7 +46,7 @@ local function setupButterHub()
 	mainFrame.BorderSizePixel = 0
 	mainFrame.Visible = false
 	mainFrame.Active = true
-	mainFrame.Draggable = true
+	mainFrame.Draggable = false
 	mainFrame.Parent = screenGui
 
 	local mainCorner = Instance.new("UICorner")
@@ -90,11 +92,14 @@ local function setupButterHub()
 	end
 
 	-- Create pages
-	local powersPage = Instance.new("Frame")
+	local powersPage = Instance.new("ScrollingFrame")
 	powersPage.Size = UDim2.new(1, 0, 1, -75)
 	powersPage.Position = UDim2.new(0, 0, 0, 75)
 	powersPage.BackgroundTransparency = 1
 	powersPage.Visible = true
+	powersPage.BorderSizePixel = 0
+	powersPage.ScrollBarThickness = 4
+	powersPage.CanvasSize = UDim2.new(0, 0, 0, 400)
 	powersPage.Parent = mainFrame
 
 	local optimizePage = Instance.new("Frame")
@@ -104,11 +109,14 @@ local function setupButterHub()
 	optimizePage.Visible = false
 	optimizePage.Parent = mainFrame
 
-	local settingsPage = Instance.new("Frame")
+	local settingsPage = Instance.new("ScrollingFrame")
 	settingsPage.Size = UDim2.new(1, 0, 1, -75)
 	settingsPage.Position = UDim2.new(0, 0, 0, 75)
 	settingsPage.BackgroundTransparency = 1
 	settingsPage.Visible = false
+	settingsPage.BorderSizePixel = 0
+	settingsPage.ScrollBarThickness = 4
+	settingsPage.CanvasSize = UDim2.new(0, 0, 0, 400)
 	settingsPage.Parent = mainFrame
 
 	-- Tab buttons
@@ -166,265 +174,409 @@ local function setupButterHub()
 		return button
 	end
 
+	-- Power buttons container (for activated buttons to appear)
+	local powerButtonsContainer = Instance.new("Frame")
+	powerButtonsContainer.Size = UDim2.new(0, 200, 0, 400)
+	powerButtonsContainer.Position = UDim2.new(1, -210, 0, 10)
+	powerButtonsContainer.BackgroundTransparency = 1
+	powerButtonsContainer.Visible = false
+	powerButtonsContainer.Parent = screenGui
+
+	local activatedButtons = {}
+
+	-- Function to create activated button
+	local function createActivatedButton(name, emoji, callback)
+		local yPos = #activatedButtons * 55
+		
+		local button = Instance.new("TextButton")
+		button.Size = UDim2.new(0, 180, 0, 50)
+		button.Position = UDim2.new(0, 0, 0, yPos)
+		button.Text = emoji .. " " .. name
+		button.TextSize = 12
+		button.Font = Enum.Font.GothamBold
+		button.TextColor3 = Color3.new(1, 1, 1)
+		button.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+		button.BorderSizePixel = 0
+		button.Active = true
+		button.Draggable = false
+		button.Parent = powerButtonsContainer
+		
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 10)
+		corner.Parent = button
+		
+		button.MouseButton1Click:Connect(callback)
+		
+		table.insert(activatedButtons, button)
+		powerButtonsContainer.Visible = true
+		
+		return button
+	end
+
+	-- Function to remove activated button
+	local function removeActivatedButton(buttonToRemove)
+		for i, btn in ipairs(activatedButtons) do
+			if btn == buttonToRemove then
+				table.remove(activatedButtons, i)
+				btn:Destroy()
+				break
+			end
+		end
+		
+		-- Reposition remaining buttons
+		for i, btn in ipairs(activatedButtons) do
+			btn.Position = UDim2.new(0, 0, 0, (i-1) * 55)
+		end
+		
+		if #activatedButtons == 0 then
+			powerButtonsContainer.Visible = false
+		end
+	end
+
 	-- ============================================
 	-- POWERS PAGE
 	-- ============================================
 
 	-- AUTO GRAB
 	local autoGrabActive = false
-	local autoGrabButton = createPowerButton("AUTO GRAB: OFF", "🪙", 5, powersPage)
+	local autoGrabButton = createPowerButton("AUTO GRAB UI", "🪙", 5, powersPage)
+	local autoGrabActivatedBtn = nil
 	local autoGrabLoop = nil
 
 	autoGrabButton.MouseButton1Click:Connect(function()
-		autoGrabActive = not autoGrabActive
-		
-		if autoGrabActive then
+		if not autoGrabActive then
+			autoGrabActive = true
 			autoGrabButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-			autoGrabButton.Text = "🪙 AUTO GRAB: ON"
+			autoGrabButton.Text = "🪙 AUTO GRAB UI: ON"
 			
-			autoGrabLoop = task.spawn(function()
-				while autoGrabActive and task.wait(0.1) do
-					pcall(function()
-						for _, obj in pairs(workspace:GetDescendants()) do
-							if obj:IsA("ProximityPrompt") then
-								local promptParent = obj.Parent
-								if promptParent and promptParent:IsA("BasePart") then
-									local distance = (promptParent.Position - humanoidRootPart.Position).Magnitude
-									if distance <= obj.MaxActivationDistance then
-										fireproximityprompt(obj)
+			autoGrabActivatedBtn = createActivatedButton("AUTO GRAB", "🪙", function()
+				-- Toggle auto grab
+				if autoGrabLoop then
+					autoGrabLoop = nil
+					autoGrabActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+				else
+					autoGrabActivatedBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+					autoGrabLoop = task.spawn(function()
+						while autoGrabLoop and task.wait(0.1) do
+							pcall(function()
+								for _, obj in pairs(workspace:GetDescendants()) do
+									if obj:IsA("ProximityPrompt") then
+										local promptParent = obj.Parent
+										if promptParent and promptParent:IsA("BasePart") then
+											local distance = (promptParent.Position - humanoidRootPart.Position).Magnitude
+											if distance <= obj.MaxActivationDistance then
+												fireproximityprompt(obj)
+											end
+										end
 									end
 								end
-							end
+							end)
 						end
 					end)
 				end
 			end)
 		else
+			autoGrabActive = false
 			autoGrabButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
-			autoGrabButton.Text = "🪙 AUTO GRAB: OFF"
+			autoGrabButton.Text = "🪙 AUTO GRAB UI"
+			if autoGrabActivatedBtn then
+				removeActivatedButton(autoGrabActivatedBtn)
+				autoGrabActivatedBtn = nil
+			end
+			autoGrabLoop = nil
 		end
 	end)
 
 	-- TELEPORT
-	local teleportCooldown = false
-	local teleportButton = createPowerButton("TELEPORT", "⚡", 55, powersPage)
+	local teleportUIActive = false
+	local teleportButton = createPowerButton("TELEPORT UI", "⚡", 60, powersPage)
+	local teleportActivatedBtn = nil
 
 	teleportButton.MouseButton1Click:Connect(function()
-		if teleportCooldown then return end
-		teleportCooldown = true
-		
-		teleportButton.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
-		teleportButton.Text = "⚡ COOLDOWN..."
-		
-		pcall(function()
-			local carpet = backpack:FindFirstChild("FlyingCarpet") or character:FindFirstChild("FlyingCarpet")
-			if carpet and carpet.Parent == backpack then
-				humanoid:EquipTool(carpet)
+		if not teleportUIActive then
+			teleportUIActive = true
+			teleportButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			teleportButton.Text = "⚡ TELEPORT UI: ON"
+			
+			teleportActivatedBtn = createActivatedButton("TELEPORT", "⚡", function()
+				local teleportCooldown = teleportActivatedBtn:GetAttribute("Cooldown")
+				if teleportCooldown then return end
+				
+				teleportActivatedBtn:SetAttribute("Cooldown", true)
+				teleportActivatedBtn.BackgroundColor3 = Color3.fromRGB(150, 150, 150)
+				teleportActivatedBtn.Text = "⚡ COOLDOWN..."
+				
+				pcall(function()
+					local carpet = backpack:FindFirstChild("FlyingCarpet") or character:FindFirstChild("FlyingCarpet")
+					if carpet and carpet.Parent == backpack then
+						humanoid:EquipTool(carpet)
+					end
+				end)
+				
+				task.wait(0.1)
+				
+				pcall(function()
+					local lookDirection = humanoidRootPart.CFrame.LookVector
+					local newPosition = humanoidRootPart.Position + (lookDirection * 50)
+					
+					local effect = Instance.new("Part")
+					effect.Shape = Enum.PartType.Ball
+					effect.Material = Enum.Material.Neon
+					effect.Color = Color3.fromRGB(255, 200, 87)
+					effect.Size = Vector3.new(3, 3, 3)
+					effect.Anchored = true
+					effect.CanCollide = false
+					effect.CFrame = CFrame.new(humanoidRootPart.Position)
+					effect.Parent = workspace
+					
+					game:GetService("TweenService"):Create(effect, TweenInfo.new(0.5), {
+						Transparency = 1,
+						Size = Vector3.new(8, 8, 8)
+					}):Play()
+					
+					game:GetService("Debris"):AddItem(effect, 0.5)
+					
+					humanoidRootPart.CFrame = CFrame.new(newPosition, newPosition + lookDirection)
+				end)
+				
+				task.wait(2)
+				teleportActivatedBtn:SetAttribute("Cooldown", nil)
+				teleportActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+				teleportActivatedBtn.Text = "⚡ TELEPORT"
+			end)
+		else
+			teleportUIActive = false
+			teleportButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+			teleportButton.Text = "⚡ TELEPORT UI"
+			if teleportActivatedBtn then
+				removeActivatedButton(teleportActivatedBtn)
+				teleportActivatedBtn = nil
 			end
-		end)
-		
-		task.wait(0.1)
-		
-		pcall(function()
-			local lookDirection = humanoidRootPart.CFrame.LookVector
-			local newPosition = humanoidRootPart.Position + (lookDirection * 50)
-			
-			local effect = Instance.new("Part")
-			effect.Shape = Enum.PartType.Ball
-			effect.Material = Enum.Material.Neon
-			effect.Color = Color3.fromRGB(255, 200, 87)
-			effect.Size = Vector3.new(3, 3, 3)
-			effect.Anchored = true
-			effect.CanCollide = false
-			effect.CFrame = CFrame.new(humanoidRootPart.Position)
-			effect.Parent = workspace
-			
-			game:GetService("TweenService"):Create(effect, TweenInfo.new(0.5), {
-				Transparency = 1,
-				Size = Vector3.new(8, 8, 8)
-			}):Play()
-			
-			game:GetService("Debris"):AddItem(effect, 0.5)
-			
-			humanoidRootPart.CFrame = CFrame.new(newPosition, newPosition + lookDirection)
-		end)
-		
-		task.wait(2)
-		teleportCooldown = false
-		teleportButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
-		teleportButton.Text = "⚡ TELEPORT"
+		end
 	end)
 
 	-- LOCK ON
+	local lockOnUIActive = false
 	local lockOnActive = false
-	local lockOnButton = createPowerButton("LOCK ON", "🎯", 105, powersPage)
-	local lockOnBodyVelocity = nil
+	local lockOnButton = createPowerButton("LOCK ON UI", "🎯", 115, powersPage)
+	local lockOnActivatedBtn = nil
 	local lockOnConnection = nil
 
 	lockOnButton.MouseButton1Click:Connect(function()
-		lockOnActive = not lockOnActive
-		
-		if lockOnActive then
-			lockOnButton.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
-			lockOnButton.Text = "🎯 LOCK ON: ON"
+		if not lockOnUIActive then
+			lockOnUIActive = true
+			lockOnButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockOnButton.Text = "🎯 LOCK ON UI: ON"
 			
-			pcall(function()
-				if not lockOnBodyVelocity or not lockOnBodyVelocity.Parent then
-					lockOnBodyVelocity = Instance.new("BodyVelocity")
-					lockOnBodyVelocity.Name = "LockOnVelocity"
-					lockOnBodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
-					lockOnBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-					lockOnBodyVelocity.Parent = humanoidRootPart
-				end
-			end)
-			
-			lockOnConnection = game:GetService("RunService").Heartbeat:Connect(function()
-				if not lockOnActive then return end
+			lockOnActivatedBtn = createActivatedButton("LOCK ON", "🎯", function()
+				lockOnActive = not lockOnActive
 				
-				pcall(function()
-					if not lockOnBodyVelocity or not lockOnBodyVelocity.Parent then
-						lockOnBodyVelocity = Instance.new("BodyVelocity")
-						lockOnBodyVelocity.Name = "LockOnVelocity"
-						lockOnBodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)
-						lockOnBodyVelocity.Velocity = Vector3.new(0, 0, 0)
-						lockOnBodyVelocity.Parent = humanoidRootPart
-					end
+				if lockOnActive then
+					lockOnActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+					lockOnActivatedBtn.Text = "🎯 LOCK ON: ON"
 					
-					local nearestPlayer = nil
-					local shortestDistance = math.huge
-					
-					for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-						if otherPlayer ~= player and otherPlayer.Character then
-							local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-							if otherRoot then
-								local distance = (otherRoot.Position - humanoidRootPart.Position).Magnitude
-								if distance < shortestDistance and distance < 500 then
-									shortestDistance = distance
-									nearestPlayer = otherPlayer
+					lockOnConnection = game:GetService("RunService").Heartbeat:Connect(function()
+						if not lockOnActive then return end
+						
+						pcall(function()
+							local nearestPlayer = nil
+							local shortestDistance = math.huge
+							
+							for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+								if otherPlayer ~= player and otherPlayer.Character then
+									local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+									if otherRoot then
+										local distance = (otherRoot.Position - humanoidRootPart.Position).Magnitude
+										if distance < shortestDistance and distance < 500 then
+											shortestDistance = distance
+											nearestPlayer = otherPlayer
+										end
+									end
 								end
 							end
-						end
-					end
-					
-					if nearestPlayer and nearestPlayer.Character then
-						local targetRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
-						if targetRoot then
-							local targetPos = targetRoot.Position - (targetRoot.CFrame.LookVector * 3)
-							local direction = (targetPos - humanoidRootPart.Position).Unit
-							local distance = (targetPos - humanoidRootPart.Position).Magnitude
 							
-							if distance > 3 then
-								local speed = math.min(distance * 40, 100)
-								lockOnBodyVelocity.Velocity = direction * speed
-							else
-								lockOnBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+							if nearestPlayer and nearestPlayer.Character then
+								local targetRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
+								if targetRoot then
+									local lookAtPos = Vector3.new(targetRoot.Position.X, humanoidRootPart.Position.Y, targetRoot.Position.Z)
+									humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, lookAtPos)
+								end
 							end
-							
-							humanoidRootPart.CFrame = CFrame.new(humanoidRootPart.Position, targetRoot.Position)
-						end
-					else
-						lockOnBodyVelocity.Velocity = Vector3.new(0, 0, 0)
+						end)
+					end)
+				else
+					lockOnActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+					lockOnActivatedBtn.Text = "🎯 LOCK ON"
+					
+					if lockOnConnection then
+						lockOnConnection:Disconnect()
+						lockOnConnection = nil
 					end
-				end)
+				end
 			end)
 		else
+			lockOnUIActive = false
 			lockOnButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
-			lockOnButton.Text = "🎯 LOCK ON"
-			
+			lockOnButton.Text = "🎯 LOCK ON UI"
+			if lockOnActivatedBtn then
+				removeActivatedButton(lockOnActivatedBtn)
+				lockOnActivatedBtn = nil
+			end
+			lockOnActive = false
 			if lockOnConnection then
 				lockOnConnection:Disconnect()
 				lockOnConnection = nil
 			end
-			
-			pcall(function()
-				if lockOnBodyVelocity then
-					lockOnBodyVelocity:Destroy()
-					lockOnBodyVelocity = nil
-				end
-			end)
 		end
 	end)
 
-	-- SPEED BOOST
+	-- SPEED BOOST WITH FORCE WALL
+	local speedBoostUIActive = false
 	local speedBoostActive = false
-	local speedButton = createPowerButton("SPEED BOOST", "💨", 155, powersPage)
+	local speedButton = createPowerButton("SPEED BOOST UI", "💨", 170, powersPage)
+	local speedActivatedBtn = nil
+	local speedForceConnection = nil
 
 	speedButton.MouseButton1Click:Connect(function()
-		speedBoostActive = not speedBoostActive
-		
-		if speedBoostActive then
-			pcall(function()
-				humanoid.WalkSpeed = 30
-			end)
+		if not speedBoostUIActive then
+			speedBoostUIActive = true
 			speedButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-			speedButton.Text = "💨 SPEED: ON"
+			speedButton.Text = "💨 SPEED BOOST UI: ON"
+			
+			speedActivatedBtn = createActivatedButton("SPEED BOOST", "💨", function()
+				speedBoostActive = not speedBoostActive
+				
+				if speedBoostActive then
+					speedActivatedBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+					speedActivatedBtn.Text = "💨 SPEED: ON"
+					
+					-- Create invisible pushing force
+					speedForceConnection = game:GetService("RunService").Heartbeat:Connect(function()
+						pcall(function()
+							if speedBoostActive and humanoid.MoveDirection.Magnitude > 0 then
+								local moveDir = humanoid.MoveDirection
+								local pushForce = moveDir * (humanoid.WalkSpeed * 2.5)
+								
+								-- Apply horizontal force only
+								local velocity = humanoidRootPart.AssemblyLinearVelocity
+								humanoidRootPart.AssemblyLinearVelocity = Vector3.new(
+									velocity.X + pushForce.X * 0.1,
+									velocity.Y,
+									velocity.Z + pushForce.Z * 0.1
+								)
+							end
+						end)
+					end)
+				else
+					speedActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+					speedActivatedBtn.Text = "💨 SPEED BOOST"
+					
+					if speedForceConnection then
+						speedForceConnection:Disconnect()
+						speedForceConnection = nil
+					end
+				end
+			end)
 		else
+			speedBoostUIActive = false
 			speedButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
-			speedButton.Text = "💨 SPEED BOOST"
+			speedButton.Text = "💨 SPEED BOOST UI"
+			if speedActivatedBtn then
+				removeActivatedButton(speedActivatedBtn)
+				speedActivatedBtn = nil
+			end
+			speedBoostActive = false
+			if speedForceConnection then
+				speedForceConnection:Disconnect()
+				speedForceConnection = nil
+			end
 		end
 	end)
 
 	-- FLING
+	local flingUIActive = false
 	local flingActive = false
-	local flingButton = createPowerButton("FLING", "🌪️", 205, powersPage)
+	local flingButton = createPowerButton("FLING UI", "🌪️", 225, powersPage)
+	local flingActivatedBtn = nil
 	local flingLoop = nil
 
 	flingButton.MouseButton1Click:Connect(function()
-		flingActive = not flingActive
-		
-		if flingActive then
-			flingButton.BackgroundColor3 = Color3.fromRGB(255, 100, 255)
-			flingButton.Text = "🌪️ FLING: ON"
+		if not flingUIActive then
+			flingUIActive = true
+			flingButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			flingButton.Text = "🌪️ FLING UI: ON"
 			
-			flingLoop = game:GetService("RunService").Heartbeat:Connect(function()
-				if not flingActive then return end
+			flingActivatedBtn = createActivatedButton("FLING", "🌪️", function()
+				flingActive = not flingActive
 				
-				pcall(function()
-					local nearestPlayer = nil
-					local shortestDistance = 10
+				if flingActive then
+					flingActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 255)
+					flingActivatedBtn.Text = "🌪️ FLING: ON"
 					
-					for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-						if otherPlayer ~= player and otherPlayer.Character then
-							local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
-							if otherRoot then
-								local distance = (otherRoot.Position - humanoidRootPart.Position).Magnitude
-								if distance < shortestDistance then
-									shortestDistance = distance
-									nearestPlayer = otherPlayer
+					flingLoop = game:GetService("RunService").Heartbeat:Connect(function()
+						if not flingActive then return end
+						
+						pcall(function()
+							local nearestPlayer = nil
+							local shortestDistance = 10
+							
+							for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+								if otherPlayer ~= player and otherPlayer.Character then
+									local otherRoot = otherPlayer.Character:FindFirstChild("HumanoidRootPart")
+									if otherRoot then
+										local distance = (otherRoot.Position - humanoidRootPart.Position).Magnitude
+										if distance < shortestDistance then
+											shortestDistance = distance
+											nearestPlayer = otherPlayer
+										end
+									end
 								end
 							end
-						end
-					end
-					
-					if nearestPlayer and nearestPlayer.Character then
-						local otherRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
-						if otherRoot then
-							local direction = (otherRoot.Position - humanoidRootPart.Position).Unit
-							local flingForce = direction * 50 + Vector3.new(0, 30, 0)
 							
-							pcall(function()
-								otherRoot.AssemblyLinearVelocity = otherRoot.AssemblyLinearVelocity + flingForce
-							end)
-							
-							pcall(function()
-								local existingBV = otherRoot:FindFirstChild("FlingVelocity")
-								if not existingBV then
-									local bv = Instance.new("BodyVelocity")
-									bv.Name = "FlingVelocity"
-									bv.MaxForce = Vector3.new(100000, 100000, 100000)
-									bv.Velocity = flingForce
-									bv.Parent = otherRoot
-									game:GetService("Debris"):AddItem(bv, 0.1)
+							if nearestPlayer and nearestPlayer.Character then
+								local otherRoot = nearestPlayer.Character:FindFirstChild("HumanoidRootPart")
+								if otherRoot then
+									local direction = (otherRoot.Position - humanoidRootPart.Position).Unit
+									local flingForce = direction * 50 + Vector3.new(0, 30, 0)
+									
+									pcall(function()
+										otherRoot.AssemblyLinearVelocity = otherRoot.AssemblyLinearVelocity + flingForce
+									end)
+									
+									pcall(function()
+										local existingBV = otherRoot:FindFirstChild("FlingVelocity")
+										if not existingBV then
+											local bv = Instance.new("BodyVelocity")
+											bv.Name = "FlingVelocity"
+											bv.MaxForce = Vector3.new(100000, 100000, 100000)
+											bv.Velocity = flingForce
+											bv.Parent = otherRoot
+											game:GetService("Debris"):AddItem(bv, 0.1)
+										end
+									end)
 								end
-							end)
-						end
+							end
+						end)
+					end)
+				else
+					flingActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+					flingActivatedBtn.Text = "🌪️ FLING"
+					
+					if flingLoop then
+						flingLoop:Disconnect()
+						flingLoop = nil
 					end
-				end)
+				end
 			end)
 		else
+			flingUIActive = false
 			flingButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
-			flingButton.Text = "🌪️ FLING"
-			
+			flingButton.Text = "🌪️ FLING UI"
+			if flingActivatedBtn then
+				removeActivatedButton(flingActivatedBtn)
+				flingActivatedBtn = nil
+			end
+			flingActive = false
 			if flingLoop then
 				flingLoop:Disconnect()
 				flingLoop = nil
@@ -432,77 +584,136 @@ local function setupButterHub()
 		end
 	end)
 
-	-- INFINITE JUMP - FIXED WITH INVISIBLE PLATFORM
+	-- INFINITE JUMP
+	local infiniteJumpUIActive = false
 	local infiniteJumpActive = false
-	local infiniteJumpButton = createPowerButton("INFINITE JUMP: OFF", "🚀", 255, powersPage)
-	local platformConnection = nil
-	local currentPlatform = nil
+	local infiniteJumpButton = createPowerButton("INFINITE JUMP UI", "🚀", 280, powersPage)
+	local infiniteJumpActivatedBtn = nil
+	local jumpConnection = nil
 
 	infiniteJumpButton.MouseButton1Click:Connect(function()
-		infiniteJumpActive = not infiniteJumpActive
-		
-		if infiniteJumpActive then
+		if not infiniteJumpUIActive then
+			infiniteJumpUIActive = true
 			infiniteJumpButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
-			infiniteJumpButton.Text = "🚀 INF JUMP: ON"
+			infiniteJumpButton.Text = "🚀 INF JUMP UI: ON"
 			
-			-- Create platform loop
-			platformConnection = game:GetService("RunService").Heartbeat:Connect(function()
-				pcall(function()
-					if not infiniteJumpActive then return end
+			infiniteJumpActivatedBtn = createActivatedButton("INFINITE JUMP", "🚀", function()
+				infiniteJumpActive = not infiniteJumpActive
+				
+				if infiniteJumpActive then
+					infiniteJumpActivatedBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+					infiniteJumpActivatedBtn.Text = "🚀 INF JUMP: ON"
 					
-					-- Check if player is jumping/falling
-					local state = humanoid:GetState()
-					
-					if state == Enum.HumanoidStateType.Freefall or 
-					   state == Enum.HumanoidStateType.Flying or
-					   state == Enum.HumanoidStateType.Jumping then
+					jumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+						if gameProcessed then return end
 						
-						-- Create or update platform
-						if not currentPlatform or not currentPlatform.Parent then
-							currentPlatform = Instance.new("Part")
-							currentPlatform.Name = "InvisiblePlatform"
-							currentPlatform.Size = Vector3.new(8, 0.5, 8)
-							currentPlatform.Anchored = true
-							currentPlatform.Transparency = 1
-							currentPlatform.CanCollide = true
-							currentPlatform.Material = Enum.Material.SmoothPlastic
-							
-							-- Make it undetectable
-							currentPlatform.CastShadow = false
-							currentPlatform.CanTouch = false
-							currentPlatform.CanQuery = false
-							
-							-- Position under player
-							currentPlatform.CFrame = CFrame.new(humanoidRootPart.Position - Vector3.new(0, 3.5, 0))
-							currentPlatform.Parent = workspace
-						else
-							-- Update position to follow player
-							currentPlatform.CFrame = CFrame.new(humanoidRootPart.Position - Vector3.new(0, 3.5, 0))
+						if input.KeyCode == Enum.KeyCode.Space and infiniteJumpActive then
+							pcall(function()
+								local platform = Instance.new("Part")
+								platform.Name = "JumpPlatform"
+								platform.Size = Vector3.new(6, 0.5, 6)
+								platform.Anchored = true
+								platform.Transparency = 1
+								platform.CanCollide = true
+								platform.Material = Enum.Material.SmoothPlastic
+								platform.CastShadow = false
+								platform.CanTouch = false
+								platform.CanQuery = false
+								platform.CFrame = CFrame.new(humanoidRootPart.Position - Vector3.new(0, 3.5, 0))
+								platform.Parent = workspace
+								
+								humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+								
+								task.delay(0.15, function()
+									if platform and platform.Parent then
+										platform:Destroy()
+									end
+								end)
+							end)
 						end
-					else
-						-- Remove platform when on ground
-						if currentPlatform and currentPlatform.Parent then
-							currentPlatform:Destroy()
-							currentPlatform = nil
-						end
+					end)
+				else
+					infiniteJumpActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+					infiniteJumpActivatedBtn.Text = "🚀 INFINITE JUMP"
+					
+					if jumpConnection then
+						jumpConnection:Disconnect()
+						jumpConnection = nil
 					end
-				end)
+				end
 			end)
 		else
+			infiniteJumpUIActive = false
 			infiniteJumpButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
-			infiniteJumpButton.Text = "🚀 INFINITE JUMP: OFF"
-			
-			-- Cleanup
-			if platformConnection then
-				platformConnection:Disconnect()
-				platformConnection = nil
+			infiniteJumpButton.Text = "🚀 INFINITE JUMP UI"
+			if infiniteJumpActivatedBtn then
+				removeActivatedButton(infiniteJumpActivatedBtn)
+				infiniteJumpActivatedBtn = nil
 			end
+			infiniteJumpActive = false
+			if jumpConnection then
+				jumpConnection:Disconnect()
+				jumpConnection = nil
+			end
+		end
+	end)
+
+	-- ANTI RAGDOLL
+	local antiRagdollUIActive = false
+	local antiRagdollActive = false
+	local antiRagdollButton = createPowerButton("ANTI RAGDOLL UI", "🛡️", 335, powersPage)
+	local antiRagdollActivatedBtn = nil
+	local antiRagdollConnection = nil
+
+	antiRagdollButton.MouseButton1Click:Connect(function()
+		if not antiRagdollUIActive then
+			antiRagdollUIActive = true
+			antiRagdollButton.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			antiRagdollButton.Text = "🛡️ ANTI RAGDOLL UI: ON"
 			
-			if currentPlatform then
-				pcall(function()
-					currentPlatform:Destroy()
-				end)
-				currentPlatform = nil
+			antiRagdollActivatedBtn = createActivatedButton("ANTI RAGDOLL", "🛡️", function()
+				antiRagdollActive = not antiRagdollActive
+				
+				if antiRagdollActive then
+					antiRagdollActivatedBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+					antiRagdollActivatedBtn.Text = "🛡️ ANTI RAGDOLL: ON"
+					
+					antiRagdollConnection = game:GetService("RunService").Heartbeat:Connect(function()
+						pcall(function()
+							if antiRagdollActive then
+								humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+								humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+								humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+							end
+						end)
+					end)
+				else
+					antiRagdollActivatedBtn.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+					antiRagdollActivatedBtn.Text = "🛡️ ANTI RAGDOLL"
+					
+					if antiRagdollConnection then
+						antiRagdollConnection:Disconnect()
+						antiRagdollConnection = nil
+					end
+					
+					pcall(function()
+						humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+						humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+					end)
+				end
+			end)
+		else
+			antiRagdollUIActive = false
+			antiRagdollButton.BackgroundColor3 = Color3.fromRGB(255, 200, 87)
+			antiRagdollButton.Text = "🛡️ ANTI RAGDOLL UI"
+			if antiRagdollActivatedBtn then
+				removeActivatedButton(antiRagdollActivatedBtn)
+				antiRagdollActivatedBtn = nil
+			end
+			antiRagdollActive = false
+			if antiRagdollConnection then
+				antiRagdollConnection:Disconnect()
+				antiRagdollConnection = nil
 			end
 		end
 	end)
@@ -632,7 +843,7 @@ local function setupButterHub()
 	stealingSpeedLabel.BackgroundTransparency = 1
 	stealingSpeedLabel.Parent = settingsPage
 
-	-- Stealing Speed Slider
+	-- Stealing Speed Slider (with force push)
 	local stealingSliderBg = Instance.new("Frame")
 	stealingSliderBg.Size = UDim2.new(0.9, 0, 0, 10)
 	stealingSliderBg.Position = UDim2.new(0.05, 0, 0, 110)
@@ -653,6 +864,104 @@ local function setupButterHub()
 	local stealingSliderFillCorner = Instance.new("UICorner")
 	stealingSliderFillCorner.CornerRadius = UDim.new(1, 0)
 	stealingSliderFillCorner.Parent = stealingSliderFill
+
+	-- Lock UI Dropdown
+	local lockUIButton = createPowerButton("🔒 LOCK UI", "🔒", 150, settingsPage)
+	local lockUIDropdown = Instance.new("Frame")
+	lockUIDropdown.Size = UDim2.new(0.9, 0, 0, 200)
+	lockUIDropdown.Position = UDim2.new(0.05, 0, 0, 200)
+	lockUIDropdown.BackgroundColor3 = Color3.fromRGB(245, 240, 210)
+	lockUIDropdown.BorderSizePixel = 0
+	lockUIDropdown.Visible = false
+	lockUIDropdown.Parent = settingsPage
+
+	local dropdownCorner = Instance.new("UICorner")
+	dropdownCorner.CornerRadius = UDim.new(0, 10)
+	dropdownCorner.Parent = lockUIDropdown
+
+	lockUIButton.MouseButton1Click:Connect(function()
+		lockUIDropdown.Visible = not lockUIDropdown.Visible
+	end)
+
+	-- Lock Butter Button
+	local lockButterBtn = createPowerButton("Lock Butter Stick", "🔒", 5, lockUIDropdown)
+	lockButterBtn.MouseButton1Click:Connect(function()
+		butterButton.Draggable = not butterButton.Draggable
+		if butterButton.Draggable then
+			lockButterBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+			lockButterBtn.Text = "🔓 Unlock Butter Stick"
+		else
+			lockButterBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockButterBtn.Text = "🔒 Lock Butter Stick"
+		end
+	end)
+
+	-- Lock Butter Hub UI
+	local lockHubBtn = createPowerButton("Lock Butter Hub UI", "🔒", 55, lockUIDropdown)
+	lockHubBtn.MouseButton1Click:Connect(function()
+		mainFrame.Draggable = not mainFrame.Draggable
+		if mainFrame.Draggable then
+			lockHubBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+			lockHubBtn.Text = "🔓 Unlock Hub UI"
+		else
+			lockHubBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockHubBtn.Text = "🔒 Lock Hub UI"
+		end
+	end)
+
+	-- Lock Button UI
+	local lockButtonUIBtn = createPowerButton("Lock Button UI", "🔒", 105, lockUIDropdown)
+	lockButtonUIBtn.MouseButton1Click:Connect(function()
+		for _, btn in ipairs(activatedButtons) do
+			btn.Draggable = not btn.Draggable
+		end
+		
+		if #activatedButtons > 0 and activatedButtons[1].Draggable then
+			lockButtonUIBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+			lockButtonUIBtn.Text = "🔓 Unlock Button UI"
+		else
+			lockButtonUIBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockButtonUIBtn.Text = "🔒 Lock Button UI"
+		end
+	end)
+
+	-- Lock All
+	local lockAllBtn = createPowerButton("🔒 LOCK ALL", "🔒", 155, lockUIDropdown)
+	lockAllBtn.MouseButton1Click:Connect(function()
+		local allLocked = not butterButton.Draggable and not mainFrame.Draggable
+		
+		if allLocked then
+			-- Unlock all
+			butterButton.Draggable = true
+			mainFrame.Draggable = true
+			for _, btn in ipairs(activatedButtons) do
+				btn.Draggable = true
+			end
+			lockAllBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+			lockAllBtn.Text = "🔓 UNLOCK ALL"
+			lockButterBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+			lockButterBtn.Text = "🔓 Unlock Butter Stick"
+			lockHubBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+			lockHubBtn.Text = "🔓 Unlock Hub UI"
+			lockButtonUIBtn.BackgroundColor3 = Color3.fromRGB(255, 100, 100)
+			lockButtonUIBtn.Text = "🔓 Unlock Button UI"
+		else
+			-- Lock all
+			butterButton.Draggable = false
+			mainFrame.Draggable = false
+			for _, btn in ipairs(activatedButtons) do
+				btn.Draggable = false
+			end
+			lockAllBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockAllBtn.Text = "🔒 LOCK ALL"
+			lockButterBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockButterBtn.Text = "🔒 Lock Butter Stick"
+			lockHubBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockHubBtn.Text = "🔒 Lock Hub UI"
+			lockButtonUIBtn.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+			lockButtonUIBtn.Text = "🔒 Lock Button UI"
+		end
+	end)
 
 	-- Slider functionality
 	local draggingNormal = false
@@ -703,9 +1012,10 @@ local function setupButterHub()
 		end
 	end)
 
-	-- Monitor brainrot and adjust speed
+	-- Monitor brainrot and adjust speed with force
+	local stealSpeedForceConnection = nil
 	task.spawn(function()
-		while task.wait(0.5) do
+		while task.wait(0.1) do
 			pcall(function()
 				if not speedBoostActive and character and humanoid then
 					local hasBrainrot = false
@@ -728,8 +1038,32 @@ local function setupButterHub()
 					
 					if hasBrainrot then
 						humanoid.WalkSpeed = stealingSpeed
+						
+						-- Apply force for stealing speed
+						if not stealSpeedForceConnection then
+							stealSpeedForceConnection = game:GetService("RunService").Heartbeat:Connect(function()
+								pcall(function()
+									if humanoid.MoveDirection.Magnitude > 0 then
+										local moveDir = humanoid.MoveDirection
+										local pushForce = moveDir * (stealingSpeed * 2)
+										
+										local velocity = humanoidRootPart.AssemblyLinearVelocity
+										humanoidRootPart.AssemblyLinearVelocity = Vector3.new(
+											velocity.X + pushForce.X * 0.08,
+											velocity.Y,
+											velocity.Z + pushForce.Z * 0.08
+										)
+									end
+								end)
+							end)
+						end
 					else
 						humanoid.WalkSpeed = normalSpeed
+						
+						if stealSpeedForceConnection then
+							stealSpeedForceConnection:Disconnect()
+							stealSpeedForceConnection = nil
+						end
 					end
 				end
 			end)
@@ -742,7 +1076,7 @@ setupButterHub()
 
 -- Re-setup on respawn
 player.CharacterAdded:Connect(function()
-	task.wait(1) -- Wait for character to fully load
+	task.wait(1)
 	setupButterHub()
 end)
 ]]
